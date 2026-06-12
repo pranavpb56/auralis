@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 style={{ color: isActive ? '#a78bfa' : '#7070a0' }}
               >
                 {isActive && (
-                  <motion_div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-violet-400" />
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-violet-400" />
                 )}
                 <Icon className="w-5 h-5" strokeWidth={isActive ? 2.2 : 1.8} />
                 <span className="text-[10px] font-medium">{label}</span>
@@ -100,6 +100,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 // tiny inline motion div for the active indicator
-function motion_div({ className }: { className: string }) {
   return <div className={className} />;
 }
