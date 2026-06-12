@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Play, Pause, Heart, Plus } from 'lucide-react';
+import { Play, Pause, Heart, MoreHorizontal } from 'lucide-react';
 import { usePlayerStore } from '@/store';
 import { playlistsAPI } from '@/lib/api';
 import { useState } from 'react';
@@ -43,67 +43,108 @@ export default function SongCard({ song, queue, index, showIndex, compact, onLik
 
   const fmt = (s?: number) => !s ? '—' : `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
+  // ── Compact row (list view) ──────────────────────────────────────────────
   if (compact) {
     return (
-      <div className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group ${isCurrent ? 'bg-purple-500/10' : 'hover:bg-white/5'}`}
-        onClick={handlePlay} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-all group ${isCurrent ? 'bg-violet-500/10 border border-violet-500/15' : 'hover:bg-white/[0.04] border border-transparent'}`}
+        onClick={handlePlay}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
         {showIndex && (
           <div className="w-5 text-center flex-shrink-0">
             {hovered || isCurrent
-              ? isCurrentPlaying ? <Pause className="w-3.5 h-3.5 text-purple-400 mx-auto" /> : <Play className="w-3.5 h-3.5 text-white mx-auto" />
-              : <span className={`text-xs ${isCurrent ? 'text-purple-400' : 'text-[#8888a8]'}`}>{index}</span>}
+              ? isCurrentPlaying
+                ? <Pause className="w-3.5 h-3.5 text-violet-400 mx-auto" />
+                : <Play className="w-3.5 h-3.5 text-white mx-auto" />
+              : <span className={`text-xs tabular-nums ${isCurrent ? 'text-violet-400' : 'text-[#7070a0]'}`}>{index}</span>
+            }
           </div>
         )}
-        <div className="w-10 h-10 rounded-lg flex-shrink-0 overflow-hidden bg-[#1c1c33]">
+
+        <div className="w-10 h-10 rounded-xl flex-shrink-0 overflow-hidden bg-[#161628] relative">
           {song.coverUrl
             ? <Image src={song.coverUrl} alt={song.title} width={40} height={40} className="object-cover" unoptimized />
-            : <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-xs font-bold text-purple-300">{song.title?.[0]}</div>}
+            : <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center text-xs font-bold text-violet-300 font-display">{song.title?.[0]}</div>
+          }
+          {isCurrent && isPlaying && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center gap-0.5">
+              {[1,2,3].map(i => <div key={i} className="waveform-bar" style={{ height: '6px', animationDelay: `${i*.12}s` }} />)}
+            </div>
+          )}
         </div>
+
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium truncate ${isCurrent ? 'text-purple-400' : 'text-white'}`}>{song.title}</p>
-          <p className="text-[#8888a8] text-xs truncate">{song.artist}</p>
+          <p className={`text-sm font-semibold truncate leading-tight ${isCurrent ? 'text-violet-400' : 'text-white'}`}>{song.title}</p>
+          <p className="text-[#7070a0] text-xs truncate mt-0.5">{song.artist}</p>
         </div>
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={handleLike} className={`transition-colors ${liked ? 'text-pink-500' : 'text-[#8888a8] hover:text-white'}`}>
+
+        <div className={`flex items-center gap-2 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+          <button onClick={handleLike} className={`transition-colors p-1 rounded-full hover:bg-white/5 ${liked ? 'text-pink-500' : 'text-[#7070a0] hover:text-white'}`}>
             <Heart className="w-3.5 h-3.5" fill={liked ? 'currentColor' : 'none'} />
           </button>
         </div>
-        <span className="text-[#8888a8] text-xs flex-shrink-0 ml-1">{fmt(song.duration)}</span>
+
+        <span className="text-[#7070a0] text-xs flex-shrink-0 tabular-nums">{fmt(song.duration)}</span>
       </div>
     );
   }
 
+  // ── Grid card ────────────────────────────────────────────────────────────
   return (
-    <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.15 }}
-      className="group relative glass-card rounded-2xl p-4 cursor-pointer overflow-hidden"
-      onClick={handlePlay} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-600/8 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-3 bg-[#1c1c33]">
-        {song.coverUrl
-          ? <Image src={song.coverUrl} alt={song.title} fill className="object-cover" unoptimized />
-          : <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-3xl font-bold text-purple-300">{song.title?.[0]}</div>}
-        <motion.button
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={hovered || isCurrent ? { scale: 1, opacity: 1 } : { scale: 0.8, opacity: 0 }}
-          className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg"
-          onClick={e => { e.stopPropagation(); handlePlay(); }}>
-          {isCurrentPlaying ? <Pause className="w-4 h-4 text-white" fill="white" /> : <Play className="w-4 h-4 text-white ml-0.5" fill="white" />}
-        </motion.button>
-        {isCurrent && !hovered && (
-          <div className="absolute bottom-2 right-2 flex items-end gap-0.5 p-2">
-            {[1,2,3].map(i => <div key={i} className="waveform-bar" style={{ height:'7px', animationDelay:`${i*.1}s` }} />)}
-          </div>
-        )}
+    <div
+      className="group relative cursor-pointer song-card-lift"
+      onClick={handlePlay}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className={`rounded-2xl p-3 transition-all ${isCurrent ? 'bg-violet-500/10 border border-violet-500/18' : 'bg-[var(--bg-surface)] border border-[var(--border)] group-hover:bg-[var(--bg-elevated)] group-hover:border-[var(--border-hover)]'}`}>
+        {/* Album art */}
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-3 bg-[#161628]">
+          {song.coverUrl
+            ? <Image src={song.coverUrl} alt={song.title} fill className="object-cover" unoptimized />
+            : <div className="w-full h-full bg-gradient-to-br from-violet-600/25 to-pink-600/25 flex items-center justify-center text-3xl font-bold text-violet-300 font-display">{song.title?.[0]}</div>
+          }
+
+          {/* Play button overlay */}
+          <motion.div
+            initial={false}
+            animate={hovered || isCurrent ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 bg-black/30 flex items-end justify-end p-2.5"
+          >
+            <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center shadow-xl shadow-violet-900/50">
+              {isCurrentPlaying
+                ? <Pause className="w-4 h-4 text-white" fill="white" />
+                : <Play className="w-4 h-4 text-white ml-0.5" fill="white" />
+              }
+            </div>
+          </motion.div>
+
+          {/* Waveform when playing and not hovered */}
+          {isCurrent && !hovered && (
+            <div className="absolute bottom-2.5 right-2.5 flex items-end gap-0.5 p-2 rounded-full bg-black/40">
+              {[1,2,3].map(i => <div key={i} className="waveform-bar" style={{ height: '7px', animationDelay: `${i*.12}s` }} />)}
+            </div>
+          )}
+
+          {/* Like button */}
+          <button
+            onClick={handleLike}
+            className={`absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-sm transition-all active:scale-90 ${liked ? 'opacity-100 text-pink-500' : 'opacity-0 group-hover:opacity-100 text-white/70 hover:text-white'}`}
+          >
+            <Heart className="w-3.5 h-3.5" fill={liked ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+
+        {/* Text */}
+        <div>
+          <p className={`font-semibold text-sm truncate leading-tight ${isCurrent ? 'text-violet-400' : 'text-white'}`}>{song.title}</p>
+          <p className="text-[#7070a0] text-xs truncate mt-1">{song.artist}</p>
+          {song.album && <p className="text-[#3a3a5a] text-xs truncate mt-0.5">{song.album}</p>}
+        </div>
       </div>
-      <div className="relative">
-        <p className={`font-medium text-sm truncate ${isCurrent ? 'text-purple-400' : 'text-white'}`}>{song.title}</p>
-        <p className="text-[#8888a8] text-xs truncate mt-0.5">{song.artist}</p>
-        {song.album && <p className="text-[#3a3a58] text-xs truncate mt-0.5">{song.album}</p>}
-      </div>
-      <button onClick={handleLike}
-        className={`absolute top-3 right-3 p-1.5 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-all ${liked ? 'text-pink-500' : 'text-white/70 hover:text-white'}`}>
-        <Heart className="w-3.5 h-3.5" fill={liked ? 'currentColor' : 'none'} />
-      </button>
-    </motion.div>
+    </div>
   );
 }
