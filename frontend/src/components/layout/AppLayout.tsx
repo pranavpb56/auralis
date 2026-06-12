@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, token } = useAuthStore();
-  const { isFullscreen, currentSong } = usePlayerStore();
+  const { isFullscreen } = usePlayerStore();
 
   useEffect(() => {
     if (!token || !user) router.push('/auth/login');
@@ -40,13 +40,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="flex-1 overflow-y-auto" style={{ paddingBottom: 'var(--player-h)' }}>
         {/* Mobile top bar */}
-        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-5 py-3"
-          style={{ background: 'rgba(8,8,16,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div
+          className="md:hidden sticky top-0 z-30 flex items-center justify-between px-5 py-3"
+          style={{
+            background: 'rgba(8,8,16,0.92)',
+            backdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+          }}
+        >
           <Link href="/dashboard" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-pink-600 flex items-center justify-center shadow-lg">
-              <span className="text-white text-sm font-bold font-display">A</span>
+              <span className="text-white text-sm font-bold">A</span>
             </div>
-            <span className="text-white font-bold text-xl font-display tracking-tight">Auralis</span>
+            <span className="text-white font-bold text-xl tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+              Auralis
+            </span>
           </Link>
           <Link href={`/profile/${user.username}`} className="relative">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-pink-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
@@ -59,7 +67,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
 
         {/* Spacer for mobile nav + mini player */}
-        <div className="md:hidden" style={{ height: 'calc(var(--mobile-nav-h) + var(--mobile-player-h) + 24px)' }} />
+        <div
+          className="md:hidden"
+          style={{ height: 'calc(var(--mobile-nav-h) + var(--mobile-player-h) + 24px)' }}
+        />
       </main>
 
       <Player />
@@ -79,7 +90,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {MOBILE_NAV.map(({ href, icon: Icon, label }) => {
             const isActive = active(href);
             return (
-              <Link key={href} href={href}
+              <Link
+                key={href}
+                href={href}
                 className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors relative"
                 style={{ color: isActive ? '#a78bfa' : '#7070a0' }}
               >
