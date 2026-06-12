@@ -3,6 +3,7 @@
  * YoutubeEngine — hidden iframe that drives full song playback.
  * Uses YouTube IFrame Player API (loaded once globally).
  * Communicates state up via Zustand store.
+ * Also manages Media Session API for background / lock-screen playback.
  */
 import { useEffect, useRef, useCallback } from 'react';
 import { usePlayerStore } from '@/store';
@@ -27,9 +28,70 @@ export default function YoutubeEngine() {
     isRepeat, ytVideoId,
     setIsPlaying, setProgress, setDuration, skipNext,
     setYtReady, setYtVideoId, updateCurrentSongYtId,
+    pauseResume, skipPrev,
   } = usePlayerStore();
 
-  // Load YouTube IFrame API once
+  // ── Media Session API ──────────────────────────────────────────────────────
+  const updateMediaSession = useCallback(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+    const song = usePlayerStore.getState().currentSong;
+    if (!song) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title || 'Unknown',
+      artist: song.artist || 'Unknown',
+      album: song.album || 'Auralis',
+      artwork: song.coverUrl
+        ? [{ src: song.coverUrl, sizes: '512x512', type: 'image/jpeg' }]
+        : [],
+    });
+  }, []);
+
+  const setMediaSessionHandlers = useCallback(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.setActionHandler('play', () => {
+      const p = playerRef.current;
+      if (p?.playVideo) p.playVideo();
+      usePlayerStore.getState().setIsPlaying(true);
+    });
+    navigator.mediaSession.setActionHandler('pause', () => {
+      const p = playerRef.current;
+      if (p?.pauseVideo) p.pauseVideo();
+      usePlayerStore.getState().setIsPlaying(false);
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      usePlayerStore.getState().skipNext();
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      usePlayerStore.getState().skipPrev();
+    });
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.seekTime !== undefined) {
+        const p = playerRef.current;
+        if (p?.seekTo) p.seekTo(details.seekTime, true);
+        usePlayerStore.getState().setProgress(details.seekTime);
+      }
+    });
+  }, []);
+
+  const updatePositionState = useCallback(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+    try {
+      const { progress, duration } = usePlayerStore.getState();
+      const p = playerRef.current;
+      const rate = p?.getPlaybackRate?.() || 1;
+      if (duration > 0) {
+        navigator.mediaSession.setPositionState({
+          duration,
+          playbackRate: rate,
+          position: Math.min(progress, duration),
+        });
+      }
+    } catch {}
+  }, []);
+
+  // ── YouTube IFrame API ─────────────────────────────────────────────────────
   useEffect(() => {
     if (window._ytApiLoaded) return;
     window._ytApiLoaded = true;
@@ -83,8 +145,10 @@ export default function YoutubeEngine() {
     const dur = p.getDuration?.() || 0;
     if (dur > 0) setDuration(dur);
 
+    updateMediaSession();
+    setMediaSessionHandlers();
     startProgressInterval();
-  }, [volume, playbackSpeed]);
+  }, [volume, playbackSpeed, updateMediaSession, setMediaSessionHandlers]);
 
   const onPlayerStateChange = useCallback((e: any) => {
     const YT = window.YT;
@@ -92,15 +156,18 @@ export default function YoutubeEngine() {
 
     if (e.data === YT.PlayerState.PLAYING) {
       setIsPlaying(true);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       const dur = e.target.getDuration?.() || 0;
       if (dur > 0) setDuration(dur);
       startProgressInterval();
     } else if (e.data === YT.PlayerState.PAUSED) {
       setIsPlaying(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
       clearProgressInterval();
     } else if (e.data === YT.PlayerState.ENDED) {
       clearProgressInterval();
       setProgress(0);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
       const { isRepeat: rep } = usePlayerStore.getState();
       if (rep === 'one') {
         e.target.seekTo(0);
@@ -113,7 +180,6 @@ export default function YoutubeEngine() {
 
   const onPlayerError = useCallback((e: any) => {
     console.warn('YT player error:', e.data);
-    // Skip to next song on error
     skipNext();
   }, [skipNext]);
 
@@ -125,9 +191,10 @@ export default function YoutubeEngine() {
       try {
         const t = p.getCurrentTime() || 0;
         setProgress(t);
+        updatePositionState();
       } catch {}
     }, 500);
-  }, [setProgress]);
+  }, [setProgress, updatePositionState]);
 
   const clearProgressInterval = useCallback(() => {
     if (progressIntervalRef.current) {
@@ -145,7 +212,6 @@ export default function YoutubeEngine() {
     const loadSong = async () => {
       let videoId = currentSong.youtubeId || ytVideoId;
 
-      // Fetch from backend if not already found
       if (!videoId) {
         try {
           const { data } = await youtubeAPI.find(currentSong.title, currentSong.artist);
@@ -161,13 +227,15 @@ export default function YoutubeEngine() {
         return;
       }
 
-      // Record play in history
+      // Update media session metadata immediately when song loads
+      updateMediaSession();
+      setMediaSessionHandlers();
+
       playlistsAPI.recordPlay(currentSong).catch(() => {});
 
       const YT = window.YT;
 
       if (!YT || !YT.Player) {
-        // API not ready yet — create player when ready
         window.onYouTubeIframeAPIReady = () => createPlayer(videoId!);
         return;
       }
@@ -212,6 +280,11 @@ export default function YoutubeEngine() {
     if (!p?.setPlaybackRate) return;
     try { p.setPlaybackRate(playbackSpeed); } catch {}
   }, [playbackSpeed]);
+
+  // Update media session when song metadata changes
+  useEffect(() => {
+    updateMediaSession();
+  }, [currentSong?.title, currentSong?.coverUrl]);
 
   // Expose seek function globally for progress bar
   useEffect(() => {
