@@ -98,7 +98,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-// tiny inline motion div for the active indicator
-  return <div className={className} />;
-}
